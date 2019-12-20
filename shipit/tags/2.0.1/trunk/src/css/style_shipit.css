@@ -1,0 +1,20 @@
+table.woocommerce-checkout-review-order-table .product-name {
+    width: auto;
+    word-wrap: break-word;
+}
+.text-mute {
+    font-size: 9px;
+    font-style: oblique;
+    color: grey;
+    opacity: 0.9;
+    padding-left: 25px;
+    vertical-align: top;
+}
+span.text-mute {
+    font-size: 9px !important;
+    font-style: oblique !important;
+    color: grey !important;
+    opacity: 0.9 !important;
+    padding-left: 25px !important;
+    vertical-align: top !important;
+}

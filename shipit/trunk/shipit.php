@@ -2,7 +2,7 @@
 /*
 Plugin Name: Shipit
 Description: Shipit Calculator Shipping couriers
-Version:     2.2.9
+Version:     2.3.0
 Author:      Shipit
 Author URI:  https://Shipit.cl/
 License: GPLv2 or later
@@ -26,6 +26,7 @@ require_once dirname( __FILE__ ) . '/src/class.settings-api.php';
 require_once dirname( __FILE__ ) . '/src/shipit-settings.php';
 require_once dirname( __FILE__ ) . '/src/webhook.php';
 require_once dirname( __FILE__ ) . '/src/auther.php';
+require_once dirname( __FILE__ ) . '/src/shipit_service/sku.php';
 require_once dirname( __FILE__ ) . '/src/bulk_actions.php';
 
 
@@ -106,11 +107,29 @@ function activar_shipit()
             );";
             
             dbDelta( $sql );
+            // here continue to sync fulfillment skus
+            // shipitSyncSkus('hola@shipit.cl', $password);
             shipitupgradeSubscriberToShopManager($user_id);
         }
         register_activation_hook(__FILE__,'activar_shipit');
-        function shipitupgradeSubscriberToShopManager($user_id)
-        {
+
+        function shipitSyncSkus($email, $passowrd) {
+            $config = array(
+                'headers' => array( 
+                    'Content-Type' => 'application/json',
+                    'X-Shipit-Email' => get_option ('shipit_user' )['shipit_user'] ,
+                    'X-Shipit-Access-Token' => get_option ('shipit_user' )['shipit_token'] ,
+                    'Accept' => 'application/vnd.shipit.v4',
+                )
+            );
+
+            $skus = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $config);
+            $skus = json_decode($skus['body'], true);
+            // here sync SKUS with store products
+            $woocommerce_products = wc_get_products();
+        }
+
+        function shipitupgradeSubscriberToShopManager($user_id) {
             $user = new WP_User($user_id);
             if (in_array('subscriber', $user->roles)) {
                 $user->set_role('shop_manager');
@@ -143,7 +162,7 @@ function activar_shipit()
                 
                 $commune_id = (int) filter_var($order->get_billing_state(), FILTER_SANITIZE_NUMBER_INT);
                 if ($order->status != 'cancelled' && $order->status != 'failed' && $order->status != 'on-hold' && $order->status != 'refunded' && $order->status != 'pending' && $order->status != 'pending payment') {
-                    $request       = shipit_cURL_wrapper_request('v2', 'http://api.shipit.cl/v/orders', 'POST', $order_id, $commune_id);
+                    $request       = shipit_cURL_wrapper_request('v2', 'https://api.shipit.cl/v/orders', 'POST', $order_id, $commune_id);
                     $response_code = wp_remote_retrieve_response_code( $request );
                     
                     if($response_code != 200){
@@ -342,9 +361,9 @@ function activar_shipit()
                                         
                                         public function calculate_shipping( $package = array() ) {
                                             $commune_id = (int) filter_var($package["destination"]['state'], FILTER_SANITIZE_NUMBER_INT);
-                                            $feeder     = shipit_cURL_Wrapper('v4', 'http://api.shipit.cl/v/integrations/seller/woocommerce', 'GET');
+                                            $feeder     = shipit_cURL_Wrapper('v4', 'https://api.shipit.cl/v/integrations/seller/woocommerce', 'GET');
                                             if ($feeder === true && $commune_id != null) {
-                                                $shipit_response      = shipit_cURL_Wrapper('v3', 'http://api.shipit.cl/v/prices', 'POST', $commune_id);
+                                                $shipit_response      = shipit_cURL_Wrapper('v3', 'https://api.shipit.cl/v/prices', 'POST', $commune_id);
                                             }
                                             
                                             $ship = $shipit_response['JSON'];
@@ -582,11 +601,11 @@ function activar_shipit()
                                     
                                     $json_array = [
                                         'package' => [
-                                            'length'        => ($body_request != null) ? $body_request->packing_measures->length : $length_plus,
+                                            'length'        => ($body_request != null) ? $body_request->packing_measures->length : 10,
                                             'destiny'       => 'Domicilio',
-                                            'weight'        => ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus,
-                                            'width'         => ($body_request != null) ? $body_request->packing_measures->width : $width_plus,
-                                            'height'        => ($body_request != null) ? $body_request->packing_measures->height : $height_plus,
+                                            'weight'        => ($body_request != null) ? $body_request->packing_measures->weight : 1,
+                                            'width'         => ($body_request != null) ? $body_request->packing_measures->width : 10,
+                                            'height'        => ($body_request != null) ? $body_request->packing_measures->height : 10,
                                             'to_commune_id' => $commune_id,
                                         ],
                                     ];
@@ -611,7 +630,7 @@ function activar_shipit()
                                     
                                     if ('POST' == $method) {
                                         return array('total'=> WC()->cart->get_subtotal(), 'JSON' => json_decode($response['body'])->prices);
-                                    } elseif ($url == 'http://api.shipit.cl/v/integrations/seller/woocommerce') {
+                                    } elseif ($url == 'https://api.shipit.cl/v/integrations/seller/woocommerce') {
                                         return json_decode($response['body'])->woocommerce->show_shipit_checkout;
                                     } else {
                                         return json_decode($response['body']);
@@ -643,6 +662,22 @@ function activar_shipit()
                                         'X-Shipit-Access-Token' => get_option ('shipit_user' )['shipit_token'] ,
                                         'Accept' => 'application/vnd.orders.v1',
                                     );
+
+                                    $config = array(
+                                        'headers' => $headers_config,
+                                    );
+
+                                    $administrative = array(
+                                        'headers' => $headers_administrative,
+                                    );
+                                    $data = wp_remote_get('https://api.shipit.cl/v/setup/administrative', $administrative);
+                                    $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $administrative);
+                                    $skus_array = json_decode($skus_request['body'], true);
+                                    $admin_shipit = json_decode($data['body']);
+                                    $services = $admin_shipit->service->name;
+                                    $shipit_id = $admin_shipit->id;
+                                    $data = wp_remote_get('https://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
+                                    $config_shipit = json_decode($data['body']);
                                     $order = wc_get_order( $order_id );
                                     $country = $order->get_billing_country();
                                     $state = $order->get_billing_state();
@@ -701,7 +736,6 @@ function activar_shipit()
                                             $divider_dimension = 1;
                                         break;
                                     }
-                                    
                                     foreach ( $order->get_items() as $item ){
                                         
                                         if ($item['variation_id'] != '' && isset($item['variation_id'])) { 
@@ -771,29 +805,39 @@ function activar_shipit()
                                             'weight'        => (float)$weight,
                                             'quantity'      => (int)$item['quantity']
                                         ];
-                                        
-                                        
-                                        
+                                           
                                         $sizes[] = [
                                             "width" => (float)$width,
                                             "height" => (float)$height,
                                             "length" => (float)$length,
                                             "volumetric_weight" => (float)$weight,
                                         ];
-                                        
-                                        $inventory[] = [   
-                                            "sku_id" => $sku,
-                                            "amount" => $item['qty'],
-                                            "id" => $product_id,
-                                            "description" => $product->get_data('short_description'),
-                                            "warehouse_id" => 1
-                                        ];
+
+                                        # here iterate and insert skus from shipit
+                                        $inventory = Array();
+                                        if ($skus_array.legth > 0) {
+                                            foreach ($skus_array as $sku_object) { 
+                                                # here find sku from product at store
+                                                if ($sku_object->name == $sku) {
+                                                    // New sku object
+                                                    $inventory_sku = new Sku($sku_object->id, $sku_object->amount, $sku_object->description, $sku_object->warehouse_id);
+                                                    // push sku object
+                                                    $inventory[] = [
+                                                        "sku_id" => $inventory_sku.get_id(),
+                                                        "amount" => $item['qty'],
+                                                        "description" => $inventory_sku.get_description(),
+                                                        "warehouse_id" => $inventory_sku.get_warehouse_id()
+                                                    ];
+                                                }
+                                            }
+                                        }
 
                                         $width_plus += (float)$width * (int)$item['quantity'];
                                         $height_plus = ((float)$height > $height_plus) ? (float)$height : $height_plus;
                                         $length_plus = ((float)$length > $length_plus) ? (float)$length : $length_plus;
                                         $weight_plus = (float)$weight * (int)$item['quantity'];
                                     }
+
                                     foreach ( $order->get_items('shipping')as $shipping_id => $shipping_item_obj ){
                                         $shipping_item_data = $shipping_item_obj->get_data()['method_id'];
                                     }
@@ -804,12 +848,6 @@ function activar_shipit()
                                     if($shipping == 'shipit'){
                                         $shipit = false;
                                     }
-                                    $config = array(
-                                        'headers' => $headers_config,
-                                    );
-                                    
-                                    $data = wp_remote_get('http://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
-                                    $config_shipit = json_decode($data['body']);
                                     
                                     $testStreets    = array();
                                     $testStreets[]    = $order->get_shipping_address_1();
@@ -821,21 +859,13 @@ function activar_shipit()
                                     $forms = new Shipit_Shipping();
                                     $setup_type_packing = $forms->settings['type_packing'];
                                     
-                                    
-                                    $administrative = array(
-                                        'headers' => $headers_administrative,
-                                    );
-                                    
-                                    $data = wp_remote_get('http://api.shipit.cl/v/setup/administrative', $administrative);
-                                    $admin_shipit = json_decode($data['body']);
-                                    $services = $admin_shipit->service->name;
-                                    $shipit_id = $admin_shipit->id;
                                     if ($admin_shipit->platform_version == 2 ){
                                         if($config_shipit->configuration->automatic_delivery === false){
                                             
                                             $body = [
                                                 "order" => [
                                                     'mongo_order_seller' => 'woocommerce',
+                                                    'seller_order_id'     => $order_id,
                                                     'reference'           => '#'.$order_id,
                                                     'full_name'           => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
                                                     'email'               => $order->get_billing_email(),
@@ -864,6 +894,8 @@ function activar_shipit()
                                             }else{
                                                 $body = [
                                                     "package" => [
+                                                        'mongo_order_seller'  => 'woocommerce',
+                                                        'seller_order_id'     => $order_id,
                                                         'reference'           => '#'.$order_id,
                                                         'full_name'           => $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name(),
                                                         'email'               => $order->get_billing_email(),
@@ -895,7 +927,7 @@ function activar_shipit()
                                                         'X-Shipit-Access-Token' => get_option ('shipit_user' )['shipit_token'] ,
                                                         'Accept' => 'application/vnd.orders.v1',
                                                     );
-                                                    $url = 'http://orders.shipit.cl/v/orders';
+                                                    $url = 'https://orders.shipit.cl/v/orders';
                                                     
                                                     $json_array = [
                                                         'packages' => 
@@ -957,11 +989,11 @@ function activar_shipit()
                                                         $request_params['order']['gift_card']['amount'] = 0;
                                                         $request_params['order']['gift_card']['total_amount'] = 0;
                                                         $request_params['order']['sizes'] = array();
-                                                        $request_params['order']['sizes']['width'] = ($body_request != null) ? $body_request->packing_measures->width : $width_plus;
-                                                        $request_params['order']['sizes']['height'] = ($body_request != null) ? $body_request->packing_measures->height : $height_plus;
-                                                        $request_params['order']['sizes']['length'] = ($body_request != null) ? $body_request->packing_measures->length : $length_plus;
-                                                        $request_params['order']['sizes']['weight'] = ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus;
-                                                        $request_params['order']['sizes']['volumetric_weight'] = $width_plus * $height_plus * $length_plus;
+                                                        $request_params['order']['sizes']['width'] = ($body_request != null) ? $body_request->packing_measures->width : 10;
+                                                        $request_params['order']['sizes']['height'] = ($body_request != null) ? $body_request->packing_measures->height : 10;
+                                                        $request_params['order']['sizes']['length'] = ($body_request != null) ? $body_request->packing_measures->length : 10;
+                                                        $request_params['order']['sizes']['weight'] = ($body_request != null) ? $body_request->packing_measures->weight : 1;
+                                                        $request_params['order']['sizes']['volumetric_weight'] = ($width_plus * $height_plus * $length_plus) / 4000;
                                                         $request_params['order']['sizes']['store'] = false;
                                                         $request_params['order']['sizes']['packing_id'] = null;
                                                         $request_params['order']['sizes']['name'] = '';
@@ -1052,10 +1084,10 @@ function activar_shipit()
                                                         $request_params['order']['gift_card']['amount'] = 0;
                                                         $request_params['order']['gift_card']['total_amount'] = 0;
                                                         $request_params['order']['sizes'] = array();
-                                                        $request_params['order']['sizes']['width'] = ($body_request != null) ? $body_request->packing_measures->width : $width_plus;
-                                                        $request_params['order']['sizes']['height'] = ($body_request != null) ? $body_request->packing_measures->height : $height_plus;
-                                                        $request_params['order']['sizes']['length'] = ($body_request != null) ? $body_request->packing_measures->length : $length_plus;
-                                                        $request_params['order']['sizes']['weight'] = ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus;
+                                                        $request_params['order']['sizes']['width'] = ($body_request != null) ? $body_request->packing_measures->width : 10;
+                                                        $request_params['order']['sizes']['height'] = ($body_request != null) ? $body_request->packing_measures->height : 10;
+                                                        $request_params['order']['sizes']['length'] = ($body_request != null) ? $body_request->packing_measures->length : 10;
+                                                        $request_params['order']['sizes']['weight'] = ($body_request != null) ? $body_request->packing_measures->weight : 1;
                                                         $request_params['order']['sizes']['volumetric_weight'] = $width_plus * $height_plus * $length_plus;
                                                         $request_params['order']['sizes']['store'] = false;
                                                         $request_params['order']['sizes']['packing_id'] = null;
@@ -1132,7 +1164,7 @@ function activar_shipit()
                                                             'X-Shipit-Access-Token' => get_option ('shipit_user' )['shipit_token'] ,
                                                             'Accept' => 'application/vnd.shipit.v4',
                                                         );
-                                                        $url = 'http://api.shipit.cl/v/shipments';
+                                                        $url = 'https://api.shipit.cl/v/shipments';
                                                     }
                                                     
                                                 }

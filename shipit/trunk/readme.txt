@@ -5,8 +5,8 @@ Tags: shipping, calculator, couriers, Shipit
 Requires at least: 4.4
 Tested up to: 5.3
 Requires PHP: 5.6
-Stable tag: 2.2.9
-Version: 2.2.9
+Stable tag: 2.3.0
+Version: 2.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
  
@@ -55,6 +55,12 @@ Sí, con la acción masiva.
 2. Field cotizador messengers `/ src / images / screenshot-2.png` 
 
 == Changelog ==
+
+= 2.3.0 =
+*Sincroniza SKUS de clientes fulfillment y los carga a la venta
+
+= 2.2.10 =
+*Correcciones a las medidas de los productos
 
 = 2.2.9 =
 *Validadores productos en 0, acciones masivas pesos recalculados

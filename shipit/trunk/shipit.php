@@ -676,8 +676,8 @@ function activar_shipit()
                                     $admin_shipit = json_decode($data['body']);
                                     $services = $admin_shipit->service->name;
                                     $shipit_id = $admin_shipit->id;
-                                    $data = wp_remote_get('https://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
-                                    $config_shipit = json_decode($data['body']);
+                                    $data_seller = wp_remote_get('https://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
+                                    $config_shipit = json_decode($data_seller['body']);
                                     $order = wc_get_order( $order_id );
                                     $country = $order->get_billing_country();
                                     $state = $order->get_billing_state();

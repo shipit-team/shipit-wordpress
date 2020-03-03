@@ -33,7 +33,25 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
     $processed_ids = array();
     
     $url = 'http://api.shipit.cl/v/orders/massive';
+
+    $administrative = array(
+        'headers' => $headers_administrative,
+    );
+
+    $config = array(
+        'headers' => $headers_config,
+    );
     
+    $data = wp_remote_get('http://api.shipit.cl/v/setup/administrative', $administrative);
+    $admin_shipit = json_decode($data['body']);
+    $shipit_id = $admin_shipit->id;
+    $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $administrative);
+    $skus_array = json_decode($skus_request['body'], true);
+
+    $data_seller = wp_remote_get('https://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
+    $config_shipit = json_decode($data_seller['body']);
+
+
     foreach ( $post_ids as $post_id) {
         $i++;
         $order = wc_get_order( $post_id );
@@ -170,13 +188,24 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                 "volumetric_weight" => (float)$weight,
             ];
             
-            $inventory[] = [   
-                "sku_id" => $sku,
-                "amount" => $item['qty'],
-                "id" => $product_id,
-                "description" => $product->get_data('short_description'),
-                "warehouse_id" => 1
-            ];
+            # here iterate and insert skus from shipit
+            $inventory = Array();
+            if ($skus_array.legth > 0) {
+                foreach ($skus_array as $sku_object) { 
+                    # here find sku from product at store
+                    if ($sku_object->name == $sku) {
+                        // New sku object
+                        $inventory_sku = new Sku($sku_object->id, $sku_object->amount, $sku_object->description, $sku_object->warehouse_id);
+                        // push sku object
+                        $inventory[] = [
+                            "sku_id" => $inventory_sku.get_id(),
+                            "amount" => $item['qty'],
+                            "description" => $inventory_sku.get_description(),
+                            "warehouse_id" => $inventory_sku.get_warehouse_id()
+                        ];
+                    }
+                }
+            }
         }
         foreach ( $order->get_items('shipping')as $shipping_id => $shipping_item_obj ){
             $shipping_item_data = $shipping_item_obj->get_data()['method_id'];
@@ -194,16 +223,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
         }
         
         $setup_type_packing = $forms['type_packing'];
-        
-        
-        $administrative = array(
-            'headers' => $headers_administrative,
-        );
-        
-        $data = wp_remote_get('http://api.shipit.cl/v/setup/administrative', $administrative);
-        $admin_shipit = json_decode($data['body']);
-        $shipit_id = $admin_shipit->id;
-      
+
         if ($admin_shipit->platform_version == 2 ){
                 $headers = array( 
                         'Content-Type' => 'application/json',
@@ -281,6 +301,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                                     'courier' => [
                                         'client' => null,
                                     ],
+                                    'products' => $inventory,
                                     'origin' => [
                                         'street' => ($address['street'] != '') ? $address['street'] : $order->get_billing_address_1(),
                                         'number' => $address['number'],

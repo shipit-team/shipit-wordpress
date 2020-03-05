@@ -601,11 +601,11 @@ function activar_shipit()
                                     
                                     $json_array = [
                                         'package' => [
-                                            'length'        => ($body_request != null) ? $body_request->packing_measures->length : 10,
+                                            'length'        => ($body_request != null) ? $body_request->packing_measures->length : $length_plus,
                                             'destiny'       => 'Domicilio',
-                                            'weight'        => ($body_request != null) ? $body_request->packing_measures->weight : 1,
-                                            'width'         => ($body_request != null) ? $body_request->packing_measures->width : 10,
-                                            'height'        => ($body_request != null) ? $body_request->packing_measures->height : 10,
+                                            'weight'        => ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus,
+                                            'width'         => ($body_request != null) ? $body_request->packing_measures->width : $width_plus,
+                                            'height'        => ($body_request != null) ? $body_request->packing_measures->height : $height_plus,
                                             'to_commune_id' => $commune_id,
                                         ],
                                     ];
@@ -672,7 +672,7 @@ function activar_shipit()
                                     );
                                     $data = wp_remote_get('https://api.shipit.cl/v/setup/administrative', $administrative);
                                     $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $administrative);
-                                    $skus_array = json_decode($skus_request['body'], true);
+                                    $skus_array = (array) json_decode($skus_request['body'], true)['skus'];
                                     $admin_shipit = json_decode($data['body']);
                                     $services = $admin_shipit->service->name;
                                     $shipit_id = $admin_shipit->id;
@@ -707,7 +707,7 @@ function activar_shipit()
                                     $height_plus = 0;
                                     $length_plus = 0;
                                     $weight_plus = 0;
-
+                                    $inventory = array();
                                     switch ($weight_unit) {
                                         case 'oz':
                                             $divider_weight = 35.274;
@@ -814,20 +814,19 @@ function activar_shipit()
                                         ];
 
                                         # here iterate and insert skus from shipit
-                                        $inventory = Array();
-                                        if ($skus_array.legth > 0) {
-                                            foreach ($skus_array as $sku_object) { 
+                                        if (!empty($skus_array)) {
+                                            foreach ($skus_array as $sku_object) {
                                                 # here find sku from product at store
-                                                if ($sku_object->name == $sku) {
+                                                if (strtolower($sku_object['name']) == strtolower($sku)) {
                                                     // New sku object
-                                                    $inventory_sku = new Sku($sku_object->id, $sku_object->amount, $sku_object->description, $sku_object->warehouse_id);
+                                                    //$inventory_sku = new Sku($sku_object['id'], $sku_object['amount'], $sku_object['description'], $sku_object['warehouse_id']);
                                                     // push sku object
-                                                    $inventory[] = [
-                                                        "sku_id" => $inventory_sku.get_id(),
+                                                    array_push($inventory, [
+                                                        "sku_id" => $sku_object['id'],
                                                         "amount" => $item['qty'],
-                                                        "description" => $inventory_sku.get_description(),
-                                                        "warehouse_id" => $inventory_sku.get_warehouse_id()
-                                                    ];
+                                                        "description" => $sku_object['description'],
+                                                        "warehouse_id" => $sku_object['warehouse_id']
+                                                    ]);
                                                 }
                                             }
                                         }
@@ -1084,10 +1083,10 @@ function activar_shipit()
                                                         $request_params['order']['gift_card']['amount'] = 0;
                                                         $request_params['order']['gift_card']['total_amount'] = 0;
                                                         $request_params['order']['sizes'] = array();
-                                                        $request_params['order']['sizes']['width'] = ($body_request != null) ? $body_request->packing_measures->width : 10;
-                                                        $request_params['order']['sizes']['height'] = ($body_request != null) ? $body_request->packing_measures->height : 10;
-                                                        $request_params['order']['sizes']['length'] = ($body_request != null) ? $body_request->packing_measures->length : 10;
-                                                        $request_params['order']['sizes']['weight'] = ($body_request != null) ? $body_request->packing_measures->weight : 1;
+                                                        $request_params['order']['sizes']['width'] = ($body_request != null) ? $body_request->packing_measures->width : $width_plus;
+                                                        $request_params['order']['sizes']['height'] = ($body_request != null) ? $body_request->packing_measures->height : $height_plus;
+                                                        $request_params['order']['sizes']['length'] = ($body_request != null) ? $body_request->packing_measures->length : $length_plus;
+                                                        $request_params['order']['sizes']['weight'] = ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus;
                                                         $request_params['order']['sizes']['volumetric_weight'] = $width_plus * $height_plus * $length_plus;
                                                         $request_params['order']['sizes']['store'] = false;
                                                         $request_params['order']['sizes']['packing_id'] = null;

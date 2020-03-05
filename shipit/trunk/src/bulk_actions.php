@@ -46,12 +46,12 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
     $admin_shipit = json_decode($data['body']);
     $shipit_id = $admin_shipit->id;
     $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $administrative);
-    $skus_array = json_decode($skus_request['body'], true);
+    $skus_array = (array) json_decode($skus_request['body'], true)['skus'];
 
     $data_seller = wp_remote_get('https://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
     $config_shipit = json_decode($data_seller['body']);
 
-
+    $i = 0;
     foreach ( $post_ids as $post_id) {
         $i++;
         $order = wc_get_order( $post_id );
@@ -78,6 +78,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
         $setup_weight =$forms['weight'];
         $weight_unit = get_option('woocommerce_weight_unit');
         $dimension_unit = get_option('woocommerce_dimension_unit');
+        $inventory = array();
         switch ($weight_unit) {
             case 'oz':
             $divider_weight = 35.274;
@@ -178,7 +179,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
             
             $width_plus += (float)$width * (int)$item['quantity'];
             $height_plus = ((float)$height > $height_plus) ? (float)$height : $height_plus;
-            $length_plus = ((float)$length > $height_plus) ? (float)$length : $height_plus;
+            $length_plus = ((float)$length > $length_plus) ? (float)$length : $length_plus;
             $weight_plus += (float)$weight * (int)$item['quantity'];
             
             $sizes[] = [
@@ -189,20 +190,19 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
             ];
             
             # here iterate and insert skus from shipit
-            $inventory = Array();
-            if ($skus_array.legth > 0) {
-                foreach ($skus_array as $sku_object) { 
+            if (!empty($skus_array)) {
+                foreach ($skus_array as $sku_object) {
                     # here find sku from product at store
-                    if ($sku_object->name == $sku) {
+                    if (strtolower($sku_object['name']) == strtolower($sku)) {
                         // New sku object
-                        $inventory_sku = new Sku($sku_object->id, $sku_object->amount, $sku_object->description, $sku_object->warehouse_id);
+                        //$inventory_sku = new Sku($sku_object['id'], $sku_object['amount'], $sku_object['description'], $sku_object['warehouse_id']);
                         // push sku object
-                        $inventory[] = [
-                            "sku_id" => $inventory_sku.get_id(),
+                        array_push($inventory, [
+                            "sku_id" => $sku_object['id'],
                             "amount" => $item['qty'],
-                            "description" => $inventory_sku.get_description(),
-                            "warehouse_id" => $inventory_sku.get_warehouse_id()
-                        ];
+                            "description" => $sku_object['description'],
+                            "warehouse_id" => $sku_object['warehouse_id']
+                        ]);
                     }
                 }
             }

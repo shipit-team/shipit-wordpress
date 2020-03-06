@@ -33,25 +33,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
     $processed_ids = array();
     
     $url = 'http://api.shipit.cl/v/orders/massive';
-
-    $administrative = array(
-        'headers' => $headers_administrative,
-    );
-
-    $config = array(
-        'headers' => $headers_config,
-    );
     
-    $data = wp_remote_get('http://api.shipit.cl/v/setup/administrative', $administrative);
-    $admin_shipit = json_decode($data['body']);
-    $shipit_id = $admin_shipit->id;
-    $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus/all', $administrative);
-    $skus_array = (array) json_decode($skus_request['body'], true);
-
-    $data_seller = wp_remote_get('https://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
-    $config_shipit = json_decode($data_seller['body']);
-
-    $i = 0;
     foreach ( $post_ids as $post_id) {
         $i++;
         $order = wc_get_order( $post_id );
@@ -78,13 +60,15 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
         $setup_weight =$forms['weight'];
         $weight_unit = get_option('woocommerce_weight_unit');
         $dimension_unit = get_option('woocommerce_dimension_unit');
-        $inventory = array();
         switch ($weight_unit) {
             case 'oz':
             $divider_weight = 35.274;
             break;
             case 'lbs':
             $divider_weight = 2.2046;
+            break;
+            case 'g':
+                $divider_weight = 1000;
             break;
             case 'kg':
             $divider_weight = 1;
@@ -179,7 +163,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
             
             $width_plus += (float)$width * (int)$item['quantity'];
             $height_plus = ((float)$height > $height_plus) ? (float)$height : $height_plus;
-            $length_plus = ((float)$length > $length_plus) ? (float)$length : $length_plus;
+            $length_plus = ((float)$length > $height_plus) ? (float)$length : $height_plus;
             $weight_plus += (float)$weight * (int)$item['quantity'];
             
             $sizes[] = [
@@ -189,23 +173,13 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                 "volumetric_weight" => (float)$weight,
             ];
             
-            # here iterate and insert skus from shipit
-            if (!empty($skus_array)) {
-                foreach ($skus_array as $sku_object) {
-                    # here find sku from product at store
-                    if (strtolower($sku_object['name']) == strtolower($sku)) {
-                        // New sku object
-                        //$inventory_sku = new Sku($sku_object['id'], $sku_object['amount'], $sku_object['description'], $sku_object['warehouse_id']);
-                        // push sku object
-                        array_push($inventory, [
-                            "sku_id" => $sku_object['id'],
-                            "amount" => $item['qty'],
-                            "description" => $sku_object['description'],
-                            "warehouse_id" => $sku_object['warehouse_id']
-                        ]);
-                    }
-                }
-            }
+            $inventory[] = [   
+                "sku_id" => $sku,
+                "amount" => $item['qty'],
+                "id" => $product_id,
+                "description" => $product->get_data('short_description'),
+                "warehouse_id" => 1
+            ];
         }
         foreach ( $order->get_items('shipping')as $shipping_id => $shipping_item_obj ){
             $shipping_item_data = $shipping_item_obj->get_data()['method_id'];
@@ -223,7 +197,16 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
         }
         
         $setup_type_packing = $forms['type_packing'];
-
+        
+        
+        $administrative = array(
+            'headers' => $headers_administrative,
+        );
+        
+        $data = wp_remote_get('http://api.shipit.cl/v/setup/administrative', $administrative);
+        $admin_shipit = json_decode($data['body']);
+        $shipit_id = $admin_shipit->id;
+      
         if ($admin_shipit->platform_version == 2 ){
                 $headers = array( 
                         'Content-Type' => 'application/json',
@@ -301,7 +284,6 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                                     'courier' => [
                                         'client' => null,
                                     ],
-                                    'products' => $inventory,
                                     'origin' => [
                                         'street' => ($address['street'] != '') ? $address['street'] : $order->get_billing_address_1(),
                                         'number' => $address['number'],

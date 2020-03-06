@@ -5,8 +5,8 @@ Tags: shipping, calculator, couriers, Shipit
 Requires at least: 4.4
 Tested up to: 5.3
 Requires PHP: 5.6
-Stable tag: 2.3.1
-Version: 2.3.1
+Stable tag: 2.3.0
+Version: 2.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
  
@@ -55,9 +55,6 @@ Sí, con la acción masiva.
 2. Field cotizador messengers `/ src / images / screenshot-2.png` 
 
 == Changelog ==
-
-= 2.3.1 =
-*Sincroniza SKUS de clientes fulfillment con SKUs no reconocidos.
 
 = 2.3.0 =
 *Sincroniza SKUS de clientes fulfillment y los carga a la venta

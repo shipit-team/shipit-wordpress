@@ -2,7 +2,7 @@
 /*
 Plugin Name: Shipit
 Description: Shipit Calculator Shipping couriers
-Version:     2.3.1
+Version:     2.3.0
 Author:      Shipit
 Author URI:  https://Shipit.cl/
 License: GPLv2 or later
@@ -123,7 +123,7 @@ function activar_shipit()
                 )
             );
 
-            $skus = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus/all', $config);
+            $skus = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $config);
             $skus = json_decode($skus['body'], true);
             // here sync SKUS with store products
             $woocommerce_products = wc_get_products();
@@ -168,11 +168,11 @@ function activar_shipit()
                     if($response_code != 200){
                         
                         $order = new WC_Order($order_id );
-                        $order->add_order_note('El pedido no pudo ser enviado a Shipit'); 
+                        $order->add_order_note('no pudo ser enviado a Shipit'); 
                         
                     }else {
                         $order = new WC_Order($order_id );
-                        $order->add_order_note('El pedido se ha enviado a Shipit correctamente'); 
+                        $order->add_order_note('Se ha enviado a Shipit correctamente'); 
                     }
                 } else {
                     $order = new WC_Order($order_id );
@@ -304,7 +304,7 @@ function activar_shipit()
                                                 'class' => 'wc-enhanced-select',
                                                 'options' => array(
                                                     '0' => 'Mostrar couriers disponibles',
-                                                    '1' => 'Mostrar el mejor valor por defecto',
+                                                    '1' => 'mostrar el mejor valor por defecto',
                                                     )
                                                 ),
                                                 'active-setup-price' => array(
@@ -671,8 +671,8 @@ function activar_shipit()
                                         'headers' => $headers_administrative,
                                     );
                                     $data = wp_remote_get('https://api.shipit.cl/v/setup/administrative', $administrative);
-                                    $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus/all', $administrative);
-                                    $skus_array = (array) json_decode($skus_request['body'], true);
+                                    $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $administrative);
+                                    $skus_array = (array) json_decode($skus_request['body'], true)['skus'];
                                     $admin_shipit = json_decode($data['body']);
                                     $services = $admin_shipit->service->name;
                                     $shipit_id = $admin_shipit->id;
@@ -1170,8 +1170,8 @@ function activar_shipit()
                                             }
                                             $args = array(
                                                 'body' => json_encode($body),
-                                                'timeout' => '10',
-                                                'redirection' => '10',
+                                                'timeout' => '5',
+                                                'redirection' => '5',
                                                 'httpversion' => '1.0',
                                                 'blocking' => true,
                                                 'headers' => $headers,

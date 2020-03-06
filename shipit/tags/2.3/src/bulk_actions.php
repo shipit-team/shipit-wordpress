@@ -45,8 +45,8 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
     $data = wp_remote_get('http://api.shipit.cl/v/setup/administrative', $administrative);
     $admin_shipit = json_decode($data['body']);
     $shipit_id = $admin_shipit->id;
-    $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus/all', $administrative);
-    $skus_array = (array) json_decode($skus_request['body'], true);
+    $skus_request = wp_remote_get('https://api.shipit.cl/v/fulfillment/skus', $administrative);
+    $skus_array = (array) json_decode($skus_request['body'], true)['skus'];
 
     $data_seller = wp_remote_get('https://orders.shipit.cl/v/integrations/seller/woocommerce', $config);
     $config_shipit = json_decode($data_seller['body']);

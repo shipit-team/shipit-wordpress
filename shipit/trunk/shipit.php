@@ -682,10 +682,11 @@ function activar_shipit()
                                     $country = $order->get_billing_country();
                                     $state = $order->get_billing_state();
                                     $name_comune = WC()->countries->get_states( $country )[$state];
-                                    if($order->is_paid())
-                                    $paid = __('yes');
-                                    else
-                                    $paid = __('no');
+                                    if($order->is_paid()) {
+                                        $paid = __('yes');
+                                    } else {
+                                        $paid = __('no');
+                                    }
                                     
                                     $height = 0;
                                     $width = 0;
@@ -708,6 +709,7 @@ function activar_shipit()
                                     $length_plus = 0;
                                     $weight_plus = 0;
                                     $inventory = array();
+                                    $product_categories = "";
                                     switch ($weight_unit) {
                                         case 'oz':
                                             $divider_weight = 35.274;
@@ -752,8 +754,11 @@ function activar_shipit()
                                         $sku = ($product->get_sku() != '') ? $product->get_sku() : $product_id;
                                         
                                         $qty = WC()->cart->get_cart_item_quantities();
+                                        $terms = get_the_terms($product_id, 'product_cat');
+                                        foreach ($terms as $term) {
+                                            $product_categories = $product_categories.' '.$term->slug;
+                                        }
                                         if ($setup_packing_set == 0) {
-                                            
                                             $height = $product->get_height();
                                             $width = $product->get_width(); 
                                             $length = $product->get_length();
@@ -877,6 +882,11 @@ function activar_shipit()
                                                     'courier_for_client'  => $order->get_shipping_method(),
                                                     'approx_size'         => 'Mediano ('.$h.'x'.$l.'x'.$w.'cm)',
                                                     'sent' => $shipit,
+                                                    'insurance_attributes' => [
+                                                        'ticket_amount' => ((int)$order->total - (int)$order->shipping_total),
+                                                        'ticket_number' => $order->id,
+                                                        'detail' => ltrim($product_categories)
+                                                    ],
                                                     'address_attributes'  => [
                                                         'commune_id'      => (int) filter_var($order->get_shipping_state(), FILTER_SANITIZE_NUMBER_INT),
                                                         'street'          => ($address['street'] != '') ? $address['street'] : $order->get_shipping_address_1(),
@@ -907,6 +917,11 @@ function activar_shipit()
                                                         'courier_for_client'  => $order->get_shipping_method(),
                                                         'approx_size'         => 'Mediano ('.$h.'x'.$l.'x'.$w.'cm)',
                                                         'sent' => $shipit,
+                                                        'insurance_attributes' => [
+                                                            'ticket_amount' => ((int)$order->total - (int)$order->shipping_total),
+                                                            'ticket_number' => $order->id,
+                                                            'detail' => ltrim($product_categories)
+                                                        ],
                                                         'address_attributes'  => [
                                                             'commune_id'      => (int) filter_var($order->get_shipping_state(), FILTER_SANITIZE_NUMBER_INT),
                                                             'street'          => ($address['street'] != '') ? $address['street'] : $order->get_shipping_address_1(),
@@ -999,18 +1014,12 @@ function activar_shipit()
                                                         $request_params['order']['courier'] = array();
                                                         $request_params['order']['courier']['client'] = $order->get_shipping_method();
                                                         $request_params['order']['prices'] = array();
-                                                        $request_params['order']['prices']['total'] = (int)$order->total;
+                                                        $request_params['order']['prices']['total'] = (int)$order->shipping_total;
                                                         $request_params['order']['prices']['price'] = (int)$order->shipping_total;
                                                         $request_params['order']['prices']['cost'] = 0;
                                                         $request_params['order']['prices']['insurance'] = 0;
                                                         $request_params['order']['prices']['tax'] = (int)$order->cart_tax;
                                                         $request_params['order']['prices']['overcharge'] = 0;
-                                                        $request_params['order']['insurance'] = array();
-                                                        $request_params['order']['insurance']['ticket_amount'] = 0;
-                                                        $request_params['order']['insurance']['ticket_number'] = 392832;
-                                                        $request_params['order']['insurance']['name'] = 'Sólido';
-                                                        $request_params['order']['insurance']['store'] = false;
-                                                        $request_params['order']['insurance']['company_id'] = '1';
                                                         $request_params['order']['state_track'] = array();
                                                         $request_params['order']['state_track']['draft'] = '';
                                                         $request_params['order']['state_track']['confirmed'] = '2019-06-07T17:13:09.141-04:00';
@@ -1043,6 +1052,11 @@ function activar_shipit()
                                                         $request_params['order']['destiny']['courier_branch_office_id'] = null;
                                                         $request_params['order']['destiny']['kind'] = 'home_delivery';
                                                         
+                                                        $request_params['order']['insurance'] = array();
+                                                        $request_params['order']['insurance']['ticket_amount'] = (int)$order->total - (int)$order->shipping_total;
+                                                        $request_params['order']['insurance']['ticket_number'] = $order->id;
+                                                        $request_params['order']['insurance']['detail'] = ltrim($product_categories);
+
                                                         $body = $request_params;
                                                         
                                                     }else {
@@ -1100,12 +1114,6 @@ function activar_shipit()
                                                         $request_params['order']['prices']['insurance'] = 0;
                                                         $request_params['order']['prices']['tax'] = (int)$order->cart_tax;
                                                         $request_params['order']['prices']['overcharge'] = 0;
-                                                        $request_params['order']['insurance'] = array();
-                                                        $request_params['order']['insurance']['ticket_amount'] = 0;
-                                                        $request_params['order']['insurance']['ticket_number'] = 392832;
-                                                        $request_params['order']['insurance']['name'] = 'Sólido';
-                                                        $request_params['order']['insurance']['store'] = false;
-                                                        $request_params['order']['insurance']['company_id'] = '1';
                                                         $request_params['order']['state_track'] = array();
                                                         $request_params['order']['state_track']['draft'] = '';
                                                         $request_params['order']['state_track']['confirmed'] = '2019-06-07T17:13:09.141-04:00';
@@ -1137,7 +1145,12 @@ function activar_shipit()
                                                         $request_params['order']['destiny']['name'] = 'predeterminado';
                                                         $request_params['order']['destiny']['courier_branch_office_id'] = null;
                                                         $request_params['order']['destiny']['kind'] = 'home_delivery';
-                                                        
+
+                                                        $request_params['order']['insurance'] = array();
+                                                        $request_params['order']['insurance']['ticket_amount'] = (int)$order->total - (int)$order->shipping_total;
+                                                        $request_params['order']['insurance']['ticket_number'] = $order->id;
+                                                        $request_params['order']['insurance']['detail'] = ltrim($product_categories);
+
                                                         $body = $request_params;
                                                         
                                                         $args = array(

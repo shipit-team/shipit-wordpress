@@ -79,6 +79,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
         $weight_unit = get_option('woocommerce_weight_unit');
         $dimension_unit = get_option('woocommerce_dimension_unit');
         $inventory = array();
+        $product_categories = "";
         switch ($weight_unit) {
             case 'oz':
             $divider_weight = 35.274;
@@ -124,6 +125,11 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
             $w = $product->get_width();
             $l = $product->get_length();
             $sku = ($product->get_sku() != '') ? $product->get_sku() : $product_id;
+
+            $terms = get_the_terms($product_id, 'product_cat');
+            foreach ($terms as $term) {
+                $product_categories = $product_categories.' '.$term->slug;
+            }
             if ($setup_packing_set == 0) {
                 
                 $height = $product->get_height();
@@ -245,6 +251,11 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                             'courier_for_client'  => $order->get_shipping_method(),
                             'approx_size'         => 'Mediano ('.$h.'x'.$l.'x'.$w.'cm)',
                             'sent' => $shipit,
+                            'insurance_attributes' => [
+                                'ticket_amount' => ((int)$order->total - (int)$order->shipping_total),
+                                'ticket_number' => $order->id,
+                                'detail' => ltrim($product_categories)
+                            ],
                             'address_attributes'  => [
                                     'commune_id'      => (int) filter_var($order->get_shipping_state(), FILTER_SANITIZE_NUMBER_INT),
                                     'street'          => $order->get_shipping_address_1(),
@@ -298,9 +309,6 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                                     'platform' => 'integration',
                                     'reference' => '#'.$post_id,
                                     'items' => $order->get_item_count(),
-                                    'courier' => [
-                                        'client' => null,
-                                    ],
                                     'products' => $inventory,
                                     'origin' => [
                                         'street' => ($address['street'] != '') ? $address['street'] : $order->get_billing_address_1(),
@@ -343,7 +351,7 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                                         'client' => $order->get_shipping_method(),
                                     ],
                                     'prices' => [
-                                        'total' => (int)$order->total,
+                                        'total' => (int)$order->shipping_total,
                                         'price' => (int)$order->shipping_total,
                                         'cost' => 0,
                                         'insurance' => 0,
@@ -351,11 +359,16 @@ function shipit_handle_bulk_action_edit_shop_order( $redirect_to, $action, $post
                                         'overcharge' => 0,
                                     ],
                                     'seller' => [
-                                            'status' => $order->status,
-                                            'name' => 'woocommerce',
-                                            'id' => $order->id,
-                                            'reference_site' => get_site_url(),
+                                        'status' => $order->status,
+                                        'name' => 'woocommerce',
+                                        'id' => $order->id,
+                                        'reference_site' => get_site_url(),
                                     ],
+                                    'insurance' => [
+                                        'ticket_amount' => ((int)$order->total - (int)$order->shipping_total),
+                                        'ticket_number' => $order->id,
+                                        'detail' => ltrim($product_categories)
+                                    ]
                                 ];
                                 $processed_ids[] = $post_id;
                                 

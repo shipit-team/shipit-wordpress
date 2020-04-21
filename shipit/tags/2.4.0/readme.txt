@@ -5,8 +5,8 @@ Tags: shipping, calculator, couriers, Shipit
 Requires at least: 4.4
 Tested up to: 5.3
 Requires PHP: 5.6
-Stable tag: 2.5.0
-Version: 2.5.0
+Stable tag: 2.4.0
+Version: 2.4.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
  
@@ -21,10 +21,11 @@ WP Version:	4.4 or later
 Hola, está a punto de instalar nuestro complemento de última milla para su logística de comercio electrónico.
 
 Donde puede integrarse con el sistema de envío de Shipit y acelerar todas las entregas de sus productos.
-Al integrar su tienda a nuestra plataforma, puede ver administrar y modificar sus envíos rápidamente con más de 5 couriers de Chile.
+Al integrar su tienda a nuestra plataforma, puede ver administrar y modificar sus envíos rápidamente con más de 5 curriers de Chile.
 
 Solo tiene que poseer sus credenciales otorgadas por Shipit.
 
+* Colaboradores: franciscoarenasp
 * etiquetas: envío, paquetería, logística, fijación de precios, administración del estado del envío.
 
    
@@ -37,7 +38,6 @@ Solo tiene que poseer sus credenciales otorgadas por Shipit.
 4. Cree una pestaña llamada `Configuración Shipit`, donde debe agregar su usuario otorgado por Shipit.
 5. Listo ya está integrado con el presupuesto de envío y la gestión de sus pedidos.
 
-Para más información, visita nuestro centro de ayuda a través del siguiente link: https://shipitcl.zendesk.com/hc/es-419/articles/360016135074--C%C3%B3mo-integrar-mi-tienda-de-WooCommerce-con-Shipit-
 
 == Frequently Asked Questions ==
 
@@ -55,12 +55,6 @@ Sí, con la acción masiva.
 2. Field cotizador messengers `/ src / images / screenshot-2.png` 
 
 == Changelog ==
-
-= 2.5.0 =
-*Habilita configuraciones desde tu integración
-
-= 2.4.1 =
-*Agrega correcciones mínimas de visualización.
 
 = 2.4.0 =
 *Agrega compatibilidad con seguro adicional.

@@ -361,8 +361,8 @@ function activar_shipit()
                                         
                                         public function calculate_shipping( $package = array() ) {
                                             $commune_id = (int) filter_var($package["destination"]['state'], FILTER_SANITIZE_NUMBER_INT);
-                                            $feeder     = shipit_cURL_Wrapper('v4', 'https://api.shipit.cl/v/integrations/seller/woocommerce', 'GET');
-                                            if ($feeder === true && $commune_id != null) {
+                                            $integration     = shipit_cURL_Wrapper('v1', 'https://orders.shipit.cl/v/integrations/seller/woocommerce', 'GET'); 
+                                            if ($integration->show_shipit_checkout === true && $commune_id != null) {
                                                 $shipit_response      = shipit_cURL_Wrapper('v3', 'https://api.shipit.cl/v/prices', 'POST', $commune_id);
                                             }
                                             
@@ -382,6 +382,14 @@ function activar_shipit()
                                                 $free = ($shows->settings['free_communes'] != '') ? in_array('CL'.strval( $commune_id ) , $shows->settings['free_communes'], TRUE) : 0;
                                                 $free = ($shows->settings['free_communes_for_price'] != '' && $upper == true) ? in_array('CL'.strval( $commune_id ) , $shows->settings['free_communes_for_price'], TRUE) : 0;
                                                 
+                                                $rate_description = function($integration, $days, $shows) {
+                                                    if ($integration->checkout->show_days && $shows->settings['time_despach'] == 'yes') {
+                                                        return $shows->settings['time_despach'] == 'yes' ? array('Tiempo de entrega aproximado: ' .$days. ' días.') : array(" ");
+                                                    } else {
+                                                        return array(" ");
+                                                    }
+                                                };
+
                                                 if ($setup_calculate == 0 && $free != true) {
                                                     if (is_array($ship) || is_object($ship))
                                                     {
@@ -392,7 +400,7 @@ function activar_shipit()
                                                                 'id'    => $this->id.'-'.$i,
                                                                 'label' => $s->courier->name,
                                                                 'cost'  => ($shows->settings['active-setup-price'] == 'yes') ?  ($info == true) ?  $s->price  - (($s->price * $shows->settings['price-setup']) /100) : $s->price : $s->price,
-                                                                'meta_data' => ($shows->settings['time_despach'] == 'yes') ? array('tiempo de entrega aprox: '.$s->days.'dias') : array(),
+                                                                'meta_data' => $rate_description($integration, $s->days, $shows)
                                                             );
                                                             
                                                             $this->add_rate( $rate );
@@ -410,7 +418,7 @@ function activar_shipit()
                                                                     'id'    => $this->id.'-'.$i,
                                                                     'label' => 'shipit',
                                                                     'cost'  => ($shows->settings['active-setup-price'] == 'yes') ?  ($info == true) ?  ($free == true) ? 0 : $s->price  - (($s->price * $shows->settings['price-setup']) /100) : ($free == true) ? 0 : $s->price : $s->price,
-                                                                    'meta_data' => ($shows->settings['time_despach'] == 'yes') ? array('tiempo de entrega aprox: '.$s->days.'dias') : array(),
+                                                                    'meta_data' => $rate_description($integration, $s->days, $shows)
                                                                 );
                                                                 
                                                                 $this->add_rate( $rate );
@@ -450,10 +458,10 @@ function activar_shipit()
                                     'Content-Type' => 'application/json',
                                     'X-Shipit-Email' => get_option ('shipit_user' )['shipit_user'] ,
                                     'X-Shipit-Access-Token' => get_option ('shipit_user' )['shipit_token'] ,
-                                    'Accept' => 'application/vnd.shipit.' . $version,
+                                    'Accept' => ($version == 'v1' ? 'application/vnd.orders.' . $version : 'application/vnd.shipit.' . $version),
                                 );
                                 $body = '';
-                                if ('POST' == $method) {
+                                if ($method == 'POST') {
                                     $cart = WC()->cart->get_cart();
                                     $count = WC()->cart->get_cart_contents_count();
                                     $height = 0;
@@ -630,8 +638,8 @@ function activar_shipit()
                                     
                                     if ('POST' == $method) {
                                         return array('total'=> WC()->cart->get_subtotal(), 'JSON' => json_decode($response['body'])->prices);
-                                    } elseif ($url == 'https://api.shipit.cl/v/integrations/seller/woocommerce') {
-                                        return json_decode($response['body'])->woocommerce->show_shipit_checkout;
+                                    } elseif ($url == 'https://orders.shipit.cl/v/integrations/seller/woocommerce') {
+                                        return json_decode($response['body'])->configuration;
                                     } else {
                                         return json_decode($response['body']);
                                     }

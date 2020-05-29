@@ -932,7 +932,7 @@ function activar_shipit()
                                                         'commune_id'      => (int) filter_var($order->get_shipping_state(), FILTER_SANITIZE_NUMBER_INT),
                                                         'street'          => ($address['street'] != '') ? $address['street'] : $order->get_shipping_address_1(),
                                                         'number'          => $address['number'],
-                                                        'complement'      => $order->get_shipping_address_2(),
+                                                        'complement'      => $address['numberAddition'].'/'.$order->get_shipping_address_2(),
                                                     ],
                                                     "inventory_activity" => [
                                                         "inventory_activity_orders_attributes"=>    
@@ -968,7 +968,7 @@ function activar_shipit()
                                                             'commune_id'      => (int) filter_var($order->get_shipping_state(), FILTER_SANITIZE_NUMBER_INT),
                                                             'street'          => ($address['street'] != '') ? $address['street'] : $order->get_shipping_address_1(),
                                                             'number'          => $address['number'],
-                                                            'complement'      => $order->get_shipping_address_2(),
+                                                            'complement'      => $address['numberAddition'].'/'.$order->get_shipping_address_2(),
                                                             ]
                                                             ]
                                                         ];
@@ -1248,13 +1248,14 @@ function activar_shipit()
                                     }
                                     function split_street($streetStr) {
                                         
-                                        $aMatch         = array();
-                                        $pattern        = '/^([\w[:punct:] ]+) ([0-9]{1,5})([\w[:punct:]\-]*)$/';
+                                        $pattern        = '/([aA-zZ]|\s*|\W)[0-9]{1,5}/';
+                                        $clean_pattern  =  '/[^0-9]/';
+                                        
                                         $matchResult    = preg_match($pattern, $streetStr, $aMatch);
                                         
-                                        $street         = (isset($aMatch[1])) ? $aMatch[1] : '';
-                                        $number         = (isset($aMatch[2])) ? $aMatch[2] : '';
-                                        $numberAddition = (isset($aMatch[3])) ? $aMatch[3] : '';
+                                        $number         = preg_replace($clean_pattern ,"", $aMatch[0]);
+                                        $street = explode($number , $streetStr)[0];
+                                        $numberAddition = explode($number , $streetStr)[1];
                                         
                                         return array('street' => $street, 'number' => $number, 'numberAddition' => $numberAddition);
                                         

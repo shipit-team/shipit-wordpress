@@ -361,9 +361,14 @@ function activar_shipit()
                                         
                                         public function calculate_shipping( $package = array() ) {
                                             $commune_id = (int) filter_var($package["destination"]['state'], FILTER_SANITIZE_NUMBER_INT);
-                                            $integration     = shipit_cURL_Wrapper('v1', 'http://orders.shipit.cl/v/integrations/seller/woocommerce', 'GET'); 
+                                            $integration     = shipit_cURL_Wrapper('v1', 'http://orders.shipit.cl/v/integrations/seller/woocommerce', 'GET');
                                             if ($integration->show_shipit_checkout === true && $commune_id != null) {
-                                                $shipit_response      = shipit_cURL_Wrapper('v3', 'http://api.shipit.cl/v/prices', 'POST', $commune_id);
+                                                $opit     = shipit_cURL_Wrapper('v4', 'https://staging.clientes.shipit.cl/v/settings/1', 'GET');
+                                                if ($opit->courier_prices_v3_enabled == true) {
+                                                    $shipit_response      = shipit_cURL_Wrapper('v4', 'http://staging.clientes.shipit.cl/v/prices/quotations', 'POST', $commune_id, $opit);
+                                                } else {
+                                                    $shipit_response      = shipit_cURL_Wrapper('v3', 'http://staging.clientes.shipit.cl/v/prices', 'POST', $commune_id, $opit);
+                                                }
                                             }
                                             
                                             $ship = $shipit_response['JSON'];
@@ -473,7 +478,7 @@ function activar_shipit()
                             add_filter( 'woocommerce_cart_shipping_method_full_label', 'Shipit_add_image_shipping', 10, 2 );
                             
                             
-                            function shipit_cURL_wrapper($version, $url, $method, $commune_id = null, $city = null) {    
+                            function shipit_cURL_wrapper($version, $url, $method, $commune_id = null, $city = null, $opit = null) {    
                                 
                                 $headers = array( 
                                     'Content-Type' => 'application/json',
@@ -627,16 +632,30 @@ function activar_shipit()
                                         $body_request = null;
                                     }
                                     
-                                    $json_array = [
-                                        'package' => [
-                                            'length'        => ($body_request != null) ? $body_request->packing_measures->length : $length_plus,
-                                            'destiny'       => 'Domicilio',
-                                            'weight'        => ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus,
-                                            'width'         => ($body_request != null) ? $body_request->packing_measures->width : $width_plus,
-                                            'height'        => ($body_request != null) ? $body_request->packing_measures->height : $height_plus,
-                                            'to_commune_id' => $commune_id,
-                                        ],
-                                    ];
+                                    
+                                    if ($opit->courier_prices_v3_enabled == true) {
+                                        $json_array = [
+                                            'shipment' => [
+                                                'length'        => ($body_request != null) ? $body_request->packing_measures->length : $length_plus,
+                                                'destiny'       => 'Domicilio',
+                                                'weight'        => ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus,
+                                                'width'         => ($body_request != null) ? $body_request->packing_measures->width : $width_plus,
+                                                'height'        => ($body_request != null) ? $body_request->packing_measures->height : $height_plus,
+                                                'to_commune_id' => $commune_id,
+                                            ],
+                                        ];
+                                    } else {
+                                        $json_array = [
+                                            'package' => [
+                                                'length'        => ($body_request != null) ? $body_request->packing_measures->length : $length_plus,
+                                                'destiny'       => 'Domicilio',
+                                                'weight'        => ($body_request != null) ? $body_request->packing_measures->weight : $weight_plus,
+                                                'width'         => ($body_request != null) ? $body_request->packing_measures->width : $width_plus,
+                                                'height'        => ($body_request != null) ? $body_request->packing_measures->height : $height_plus,
+                                                'to_commune_id' => $commune_id,
+                                            ],
+                                        ];
+                                    }
                                     
                                     $body = json_encode($json_array);
                                     
@@ -660,6 +679,8 @@ function activar_shipit()
                                         return array('total'=> WC()->cart->get_subtotal(), 'JSON' => json_decode($response['body'])->prices);
                                     } elseif ($url == 'http://orders.shipit.cl/v/integrations/seller/woocommerce') {
                                         return json_decode($response['body'])->configuration;
+                                    } elseif ($url == 'http://staging.clientes.shipit.cl/v/settings/1') {
+                                        return json_decode($response['body'])->configuration->opit;
                                     } else {
                                         return json_decode($response['body']);
                                     }

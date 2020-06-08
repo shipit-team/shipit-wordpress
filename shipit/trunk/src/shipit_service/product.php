@@ -12,19 +12,29 @@
       $this->warehouse_id = $warehouse_id;
     }
 
-    function get_id() {
-      return $this->id;
-    }
-    function get_amount() {
-      return $this->amount;
-    }
-    function get_description() {
-      return $this->description;
-    }
-    function get_warehouse_id() {
-      return $this->warehouse_id;
+    function getProduct() {
+      return array(
+        'sku_id' => $this->getId(),
+        'amount' => $this->getAmount(),
+        'description' => $this->getDescription(),
+        'warehouse_id' => $this->getWarehouseId(),
+      );
     }
 
-  }
+    function getId() {
+      return $this->id;
+    }
   
+    function getAmount() {
+      return $this->amount;
+    }
+
+    function getDescription() {
+      return $this->description;
+    }
+
+    function getWarehouseId() {
+      return $this->warehouse_id;
+    }
+  }
 ?>

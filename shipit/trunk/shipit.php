@@ -501,9 +501,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
               'description' => $skuObject['description'],
               'warehouse_id' => $skuObject['warehouse_id']
             ]);
+            $measure = new Measure((float)$skuObject['height'], (float)$skuObject['width'], (float)$skuObject['length'], (float)$skuObject['weight'], (int)$cartItem['qty']);
+            $measuresCollection->setMeasures($measure->buildBoxifyRequest());
           }
-          $measure = new Measure((float)$skuObject['height'], (float)$skuObject['width'], (float)$skuObject['length'], (float)$skuObject['weight'], (int)$cartItem['qty']);
-          $measuresCollection->setMeasures($measure->buildBoxifyRequest());
         }
       } else {
         $height = $helper->packingSetting($product->get_height(), $forms->settings, 'height', 'packing_set', $measureConversion);
